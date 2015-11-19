@@ -53,9 +53,9 @@ for (s, gt) in test_data:
     # compute posteriors for each solution
     posteriors = { algo: [ solver.posterior(s, output) for output in outputs[algo][0] ] for algo in outputs }
 
-    Score.print_results(s, outputs, posteriors)
+    Score.print_results(s, outputs, posteriors) ###################################################
 
     scorer.score(outputs)
-    scorer.print_scores()
+    scorer.print_scores() ######################################################3
 
     print "----"
