@@ -95,7 +95,7 @@ class Solver:
 			samp[count] = self.max_pos(tag_all_words[word])
 			count += 1
 
-		burn_in = 10000
+		burn_in = 100
        	#sample sample_count times + some burn in
 		for i in range(burn_in+sample_count):
 			#print samp
