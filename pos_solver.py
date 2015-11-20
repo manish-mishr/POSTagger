@@ -55,8 +55,7 @@ class Solver:
 				if tag_tuple[i] not in tag_all_words[word_tuple[i]].keys():
 					for p in self.pos:
 						tag_all_words[word_tuple[i]][p] = 1.0
-					tag_all_words[word_tuple[i]][tag_tuple[i]] += 100.0 
-
+				tag_all_words[word_tuple[i]][tag_tuple[i]] += 100.0
 				if i < length-1:
 					tag_binary[(tag_tuple[i],tag_tuple[i+1])] += 100.0
 				elif i == length-1:
@@ -97,8 +96,8 @@ class Solver:
 			count += 1
 
 		burn_in = 10000
-       #sample sample_count times + some burn in
-		for i in range( burn_in+sample_count):
+       	#sample sample_count times + some burn in
+		for i in range(burn_in+sample_count):
 			#print samp
 			new_samp = samp
 			new_prob = defaultdict(list)
@@ -107,12 +106,8 @@ class Solver:
 			count = 0
 			for w in sentence:
 				for p in self.pos:
-                    #print p
                     #P(S_2 | S_1=noun) P(S3=noun | S2) P(W_2=dog | S2)
-                    # print samp[count]
-                    # print tag_all[p]
-					prob = (tag_binary[(samp[count-1] if count-1 >=0 else '*',p)]/tag_all[samp[count]]) * \
-							(tag_binary[(p,samp[count+1] if count+1 < len(sentence) else '*')]/tag_all[p]) * (tag_all_words[w][p]/tag_all[p])
+					prob = (tag_binary[(samp[count-1] if count-1 >=0 else '*',p)]/tag_all[samp[count]]) * (tag_binary[(p,samp[count+1] if count+1 < len(sentence) else '*')]/tag_all[p]) * (tag_all_words[w][p]/tag_all[p])
 					new_prob[count].append((p,prob))
 				count += 1
 
@@ -121,10 +116,8 @@ class Solver:
 			count = 0
 			for w in new_prob:
                 #total of small probabilities
-                # print w
 				pr_sum = 0
 				for tu in new_prob[w]:
-                    # print tu
 					pr_sum += tu[1]
 
                 #normalize probabilities, should sum to 1
@@ -136,12 +129,11 @@ class Solver:
 				r = random.random()
 				c_sum = 0 
 				new_tag = ""
-				done = False
 				for nd in new_dict:
 					c_sum += new_dict[nd]
-					if r <= c_sum and not done:
+					if r <= c_sum:
 						new_tag = nd
-						done = True
+						break
                 # print w, r, c_sum
                         
 				new_samp[count] = new_tag
@@ -168,7 +160,7 @@ class Solver:
 		for word in sentence:
 			for pos in self.pos:
 				count_majority[word][pos] = 0.0
-		[pos_list,[]] = self.mcmc(sentence,10000)
+		[pos_list,[]] = self.mcmc(sentence,1000)
 		for each_list in pos_list:
 			for pos,word in izip(each_list,sentence):
 				count_majority[word][pos] += 1
