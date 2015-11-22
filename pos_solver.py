@@ -20,7 +20,7 @@ from itertools import izip
 # that we've supplied.
 #ot
 
-											# tag_first keeps the count of 
+											# tag_first keeps the count of
 
 
 
@@ -62,8 +62,8 @@ class Solver:
 					tag_binary[(tag_tuple[i],'*')] += 100.0
 		for key in tag_all:
 			self.wordCount += tag_all[key]
-        
-                # print key, tag_binary[key]   
+
+                # print key, tag_binary[key]
 
     # Functions for each algorithm.
 	def naive(self, sentence):
@@ -74,7 +74,7 @@ class Solver:
 		for word in sentence:
 			if len(tag_all_words[word]) == 0:
 		            tag_all_words[word] = tag_all
-		        pos = self.max_pos(tag_all_words[word])
+		        pos = self.max_pos(tag_all_words[word])[0]
 			pos_list.append(pos)
 		return [[pos_list] , [] ]
 
@@ -92,26 +92,25 @@ class Solver:
 		for word in sentence:
 			if len(tag_all_words[word]) == 0:
 				tag_all_words[word] = tag_all
-			samp[count] = self.max_pos(tag_all_words[word])
+			samp[count] = self.max_pos(tag_all_words[word])[0]
 			count += 1
 
 		burn_in = 100
        	#sample sample_count times + some burn in
 		for i in range(burn_in+sample_count):
-			#print samp
 			new_samp = samp
 			new_prob = defaultdict(list)
 
             #calculate probabilities of each part of speech
 			count = 0
 			for w in sentence:
+				obs_count = sum(tag_all_words[w][p1] for p1 in self.pos)
 				for p in self.pos:
-                    #P(S_2 | S_1=noun) P(S3=noun | S2) P(W_2=dog | S2)
-					prob = (tag_binary[(samp[count-1] if count-1 >=0 else '*',p)]/tag_all[samp[count]]) * (tag_binary[(p,samp[count+1] if count+1 < len(sentence) else '*')]/tag_all[p]) * (tag_all_words[w][p]/tag_all[p])
+                    #P(S_2 | S_1=noun) P(S3=noun | S2) P(W_2=obs | S2)
+					prob = (tag_binary[(samp[count-1] if count-1 >=0 else '*',p)]/tag_all[samp[count]]) * (tag_binary[(p,samp[count+1] if count+1 < len(sentence) else '*')]/tag_all[p]) * (tag_all_words[w][p]/obs_count)
 					new_prob[count].append((p,prob))
 				count += 1
 
-            # print new_prob
             # generate new sample based on these probabilities
 			count = 0
 			for w in new_prob:
@@ -127,15 +126,14 @@ class Solver:
 
                 #sample from normalized probability spac
 				r = random.random()
-				c_sum = 0 
+				c_sum = 0
 				new_tag = ""
 				for nd in new_dict:
 					c_sum += new_dict[nd]
 					if r <= c_sum:
 						new_tag = nd
 						break
-                # print w, r, c_sum
-                        
+
 				new_samp[count] = new_tag
 				count += 1
 
@@ -147,11 +145,11 @@ class Solver:
 					samp_list += [samp[key]]
 				ret.append(samp_list)
 
-				
+
 		return [ret, []]
 
 	def best(self, sentence):
-		return [ [ [ "noun" ] * len(sentence)], [] ]
+		return self.viterbi(sentence)
 
 	def max_marginal(self, sentence):
 		count_majority = defaultdict(dict)
@@ -167,7 +165,7 @@ class Solver:
 		for key in count_majority.keys():
 			totalCount = 0
 			for pos_tag in count_majority[key]:
-				totalCount += count_majority[key][pos_tag] 
+				totalCount += count_majority[key][pos_tag]
 			count_majority[key]["count"]= totalCount
 		for word in sentence:
 			major = 0
@@ -178,14 +176,40 @@ class Solver:
 					tag = pos
 			tag_list.append(tag)
 			confidence.append(major/float(count_majority[word]["count"]))
-			
+
 		return  [[tag_list], [confidence] ]
 
 	def viterbi(self, sentence):
-		return [ [ [ "noun" ] * len(sentence)], [] ]
+		tag_binary = self.tag_binary
+		tag_all = self.tag_all
+		tag_all_words = self.tag_all_words
+		pos = self.pos
+		table = [{}]
+		path = {}
+
+		#base case
+		obs_count = sum(tag_all_words[sentence[0]][p1] for p1 in self.pos)
+		for p in pos:
+			table[0][p] = (tag_binary[('*',p)]/tag_all[p]) * (tag_all_words[sentence[0]][p]/obs_count)
+			path[p] = [p]
+
+		for i in range(1, len(sentence)):
+			table.append({})
+			newpath = {}
+			obs_count = sum(tag_all_words[sentence[i]][p1] for p1 in self.pos)
+			for p in pos:
+				(prob, state) = max((table[i-1][p1] * (tag_binary[(p1,p)]/tag_all[p1]) * (tag_all_words[sentence[i]][p]/obs_count), p1) for p1 in pos)
+				table[i][p] = prob
+				newpath[p] = path[state] + [p]
+
+			path = newpath
+
+		(prob, state) = max((table[len(sentence)-1][p],p) for p in pos)
+
+		return [ [path[state]], [] ]
 
     # This solve() method is called by label.py, so you should keep the listerface the
-    #  same, but you can change the code itself. 
+    #  same, but you can change the code itself.
     # It's supposed to return a list with two elements:
     #
     #  - The first element is a list of part-of-speech labelings of the sentence.
@@ -214,8 +238,7 @@ class Solver:
 		m = 0
 		b = ""
 		for p in d:
-			if d[p] > m:
-				m = max(m,d[p])+(self.tag_all[p]/self.wordCount)
+			if (d[p] + (self.tag_all[p]/self.wordCount))  > m:
+				m = max(m,d[p]) +(self.tag_all[p]/self.wordCount)
 				b = p
-		return b
-
+		return (b, m)
